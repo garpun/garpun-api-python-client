@@ -1,21 +1,17 @@
-import unittest
+from garpunauth.client import GarpunCredentials
 
-import garpunapiclient.client
+from garpunapiclient.client import GarpunApi
 
 
-class GarpunApiTests(unittest.TestCase):
+GarpunCredentials.authenticate_user(['cloud-platform', 'meta.dev'])
 
-    def setUp(self):
-        pass
+api = GarpunApi.build("trafficestimator", "v1")
 
-    def test_key2param(self):
-        api = garpunapiclient.client.GarpunApi.build("trafficestimator", "v1")
-
-        resp, content = api.post("keyword/get", post_data={
-            "keywords": [
-                "bmw",
-                "mersedes"
-            ]
-        })
-        print(resp)
-        print(u"content = %s" % str(content))
+resp, content = api.post("keyword/get", post_data={
+    "keywords": [
+        "bmw",
+        "mersedes"
+    ]
+})
+print(resp)
+print(u"content = %s" % str(content))

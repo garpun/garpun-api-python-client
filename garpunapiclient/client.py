@@ -3,10 +3,9 @@ import time
 import urllib
 import httplib2
 
-import garpun.auth
-import garpun.auth.client
-import garpunapiclient
-import garpunapiclient.errors
+from garpunauth.client import GarpunCredentials
+
+from garpunapiclient.errors import HttpError
 
 
 class GarpunApi:
@@ -61,20 +60,20 @@ class GarpunApi:
             elif resp['status'] == '401':
                 auth_error_cnt += 1
                 if auth_error_cnt >= 2:
-                    raise garpunapiclient.errors.HttpError(resp, content, uri)
+                    raise HttpError(resp, content, uri)
                 self.__refresh_access_token()
                 continue
 
             elif resp['status'] in ['502', '503', '504']:
                 if _try_idx == self.max_retries - 1:
-                    raise garpunapiclient.errors.HttpError(resp, content, uri)
+                    raise HttpError(resp, content, uri)
                 else:
                     time.sleep(15)
                     continue
             else:
                 # skip all retries, because in internal server error and we
                 # must not increase the load.
-                raise garpunapiclient.errors.HttpError(resp, content, uri)
+                raise HttpError(resp, content, uri)
 
     def __refresh_access_token(self):
         http = self.credentials.authorize(self.http)
@@ -88,7 +87,7 @@ class GarpunApi:
         :return: GarpunApi
         """
         api_host = "http://" + api_name + ".apis.devision.io"
-        default_credentials = garpun.auth.client.GarpunCredentials.get_application_default()
+        default_credentials = GarpunCredentials.get_application_default()
         return GarpunApi(
             host=api_host,
             api_version=api_version,

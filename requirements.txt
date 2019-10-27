@@ -1,1 +1,1 @@
-garpun-auth
+garpunauth==0.0.6

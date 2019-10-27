@@ -39,8 +39,7 @@ setuptools.setup(
     ],
     install_requires=DEPENDENCIES,
     python_requires=">=3.4",
-    packages=setuptools.find_packages(),
+    packages=['garpunapiclient'],
     package_data={'': ['LICENSE']},
-    namespace_packages=("garpunapiclient",),
     include_package_data=True,
 )
