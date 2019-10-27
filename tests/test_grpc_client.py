@@ -1,6 +1,6 @@
 import unittest
 
-from garpun.apiclient.client import GarpunApi
+import garpunapiclient.client
 
 
 class GarpunApiTests(unittest.TestCase):
@@ -9,7 +9,7 @@ class GarpunApiTests(unittest.TestCase):
         pass
 
     def test_key2param(self):
-        api = GarpunApi.build("trafficestimator", "v1")
+        api = garpunapiclient.client.GarpunApi.build("trafficestimator", "v1")
 
         resp, content = api.post("keyword/get", post_data={
             "keywords": [
