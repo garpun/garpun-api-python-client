@@ -30,7 +30,7 @@ class GarpunApi:
         return self.request("POST", method_path, query_string, post_data)
 
     def request(self, http_method, method_path, query_string=None, post_data=None):
-        uri = self.host + '/' + self.api_version + '/' + method_path
+        uri = self.host + "/" + self.api_version + "/" + method_path
         if query_string:
             query_string = urllib.urlencode(query_string)
             if "?" in uri:
@@ -45,26 +45,22 @@ class GarpunApi:
         for _try_idx in range(self.max_retries):
             headers = {"Authorization": "Bearer " + self.credentials.access_token}
 
-            req_param = {
-                "uri": uri,
-                "method": http_method,
-                "headers": headers,
-            }
+            req_param = {"uri": uri, "method": http_method, "headers": headers}
             if post_data:
-                req_param['body'] = json.dumps(post_data)
+                req_param["body"] = json.dumps(post_data)
 
             resp, content = self.http.request(**req_param)
-            if resp['status'] == '200':
+            if resp["status"] == "200":
                 return resp, content
 
-            elif resp['status'] == '401':
+            elif resp["status"] == "401":
                 auth_error_cnt += 1
                 if auth_error_cnt >= 2:
                     raise HttpError(resp, content, uri)
                 self.__refresh_access_token()
                 continue
 
-            elif resp['status'] in ['502', '503', '504']:
+            elif resp["status"] in ["502", "503", "504"]:
                 if _try_idx == self.max_retries - 1:
                     raise HttpError(resp, content, uri)
                 else:
@@ -87,9 +83,7 @@ class GarpunApi:
         :return: GarpunApi
         """
         api_host = "http://" + api_name + ".apis.devision.io"
-        default_credentials = GarpunCredentials.get_application_default()
+        default_credentials, project_id = GarpunCredentials.get_application_default()
         return GarpunApi(
-            host=api_host,
-            api_version=api_version,
-            credentials=default_credentials
+            host=api_host, api_version=api_version, credentials=default_credentials
         )

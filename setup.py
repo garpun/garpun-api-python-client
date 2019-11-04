@@ -1,45 +1,41 @@
 #!/usr/bin/env python
-from os import path
-
-import setuptools
-
+import os
+import sys
+from codecs import open
+from setuptools import setup
 from garpunapiclient import info
 
+if sys.version_info < (3, 6, 0):
+    print("Python 3.6+ is required")
+    exit(1)
 
-def parse_requirements(filename):
-    """ load requirements from a pip requirements file """
-    lineiter = (line.strip() for line in open(filename))
-    return [line for line in lineiter if line and not line.startswith("#")]
+here = os.path.abspath(os.path.dirname(__file__))
 
-
-here = path.abspath(path.dirname(__file__))
-
-# Get the long description from the README file
-with open(path.join(here, 'README.rst')) as f:
+with open(os.path.join(here, "README.rst")) as f:
     long_description = f.read()
 
-DEPENDENCIES = parse_requirements('requirements.txt')
+DEPENDENCIES = ["garpunauth>=0.0.7", "requests==2.19.1"]
 
-setuptools.setup(
+setup(
     name=info.__package_name__,
     version=info.__version__,
-
-    description='Garpun API Client',
+    description="Garpun API Client",
     long_description=long_description,
-
-    url='https://github.com/garpun/garpun-api-python-client',
-
-    author='Garpun Cloud',
-    author_email='support@garpun.com',
-
+    url="https://github.com/garpun/garpun-api-python-client",
+    author="Garpun Cloud",
+    author_email="support@garpun.com",
     license="Apache 2.0",
-
+    zip_safe=False,
     classifiers=[
-        'Programming Language :: Python :: 3'
+        "Operating System :: OS Independent",
+        "Programming Language :: Python",
+        "Programming Language :: Python :: 3.6",
+        "Programming Language :: Python :: 3.7",
+        "Programming Language :: Python :: 3 :: Only",
     ],
     install_requires=DEPENDENCIES,
-    python_requires=">=3.4",
-    packages=['garpunapiclient'],
-    package_data={'': ['LICENSE']},
+    python_requires=">=3.6",
+    packages=["garpunapiclient"],
+    package_data={"": ["LICENSE"]},
     include_package_data=True,
 )
