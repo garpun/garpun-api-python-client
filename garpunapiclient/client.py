@@ -30,14 +30,20 @@ class GarpunApi:
         self.credentials = credentials
         self.max_retries = max_retries
 
-    def get(self, method_path, get_params=None):
-        return self.request("GET", method_path, get_params)
+    def get(self, method_path, query_string=None):
+        return self.request("GET", method_path, query_string)
 
-    def post(self, method_path, get_params=None, post_data=None):
-        return self.request("POST", method_path, get_params, post_data)
+    def post(self, method_path, query_string=None, post_data=None):
+        return self.request("POST", method_path, query_string, post_data)
 
-    def request(self, http_method, method_path, get_params=None, post_data=None):
-        url = self.host + "/" + self.api_version + "/" + method_path
+    def request(self, http_method, method_path, query_string=None, post_data=None):
+        uri = self.host + "/" + self.api_version + "/" + method_path
+        if query_string:
+            query_string = urllib.urlencode(query_string)
+            if "?" in uri:
+                uri += "&" + query_string
+            else:
+                uri += "?" + query_string
 
         if not self.credentials.access_token_expired:
             self.__refresh_access_token()
@@ -46,35 +52,31 @@ class GarpunApi:
         for _try_idx in range(self.max_retries):
             headers = {"Authorization": "Bearer " + self.credentials.access_token}
 
-            req_param = {
-                "method": http_method,
-                "url": url,
-                "data": get_params,
-                "json": post_data,
-                "headers": headers,
-            }
-            resp = requests.request(**req_param)
-            if resp.status_code == 200:
-                return resp
+            req_param = {"uri": uri, "method": http_method, "headers": headers}
+            if post_data:
+                req_param["body"] = json.dumps(post_data)
 
-            elif resp.status_code == 401:
+            resp, content = self.http.request(**req_param)
+            if resp["status"] == "200":
+                return resp, content
+
+            elif resp["status"] == "401":
                 auth_error_cnt += 1
                 if auth_error_cnt >= 2:
-                    raise HttpError(resp, url)
+                    raise HttpError(resp, content, uri)
                 self.__refresh_access_token()
                 continue
 
-            elif resp.status_code in [502, 503, 504]:
+            elif resp["status"] in ["502", "503", "504"]:
                 if _try_idx == self.max_retries - 1:
-                    raise HttpError(resp, url)
+                    raise HttpError(resp, content, uri)
                 else:
                     time.sleep(15)
                     continue
-
             else:
                 # skip all retries, because in internal server error and we
                 # must not increase the load.
-                raise HttpError(resp, url)
+                raise HttpError(resp, content, uri)
 
     def __refresh_access_token(self):
         http = self.credentials.authorize(self.http)

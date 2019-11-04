@@ -14,7 +14,7 @@ here = os.path.abspath(os.path.dirname(__file__))
 with open(os.path.join(here, "README.rst")) as f:
     long_description = f.read()
 
-DEPENDENCIES = ["garpunauth>=0.0.7", "requests==2.19.1"]
+DEPENDENCIES = ["garpunauth>=0.0.7"]
 
 setup(
     name=info.__package_name__,
