@@ -1,6 +1,6 @@
 import time
 
-import httplib2
+import requests
 
 from garpunauth.client import GarpunCredentials
 from garpunapiclient.errors import HttpError
@@ -13,30 +13,28 @@ class GarpunApi:
     """
 
     def __init__(
-        self,
-        host,
-        api_version,
-        credentials: GarpunCredentials = None,
-        http=None,
-        max_retries=10,
+            self,
+            base_url,
+            credentials: GarpunCredentials = None,
+            max_retries=10,
+            http_session=None
     ):
-        if http is None:
-            http = httplib2.Http()
+        if http_session is None:
+            http_session = requests.Session()
 
-        self.http = http
-        self.host = host
-        self.api_version = api_version
+        self.http_session = http_session
+        self.base_url = base_url
         self.credentials = credentials
         self.max_retries = max_retries
 
     def get(self, method_path, query_params=None, model=None):
-        return self.request("GET", method_path, query_params, model)
+        return self.request("GET", method_path, query_params, model=model)
 
     def post(self, method_path, query_params=None, body_value=None, model=None):
-        return self.request("POST", method_path, query_params, body_value, model)
+        return self.request("POST", method_path, query_params, body_value, model=model)
 
     def request(
-        self, http_method, method_path, query_params=None, body_value=None, model=None
+            self, http_method, method_path, query_params=None, body_value=None, model=None
     ):
         if model is None:
             model = JsonModel()
@@ -44,7 +42,7 @@ class GarpunApi:
         if query_params is None:
             query_params = {}
 
-        uri = self.host + "/" + self.api_version + "/" + method_path
+        uri = self.base_url + "/" + method_path
 
         headers = {}
         (headers, query, body_value) = model.request(headers, query_params, body_value)
@@ -55,27 +53,34 @@ class GarpunApi:
 
         auth_error_cnt = 0
         for _try_idx in range(self.max_retries):
+            # access_token can refresh into this loop
             headers["Authorization"] = "Bearer " + self.credentials.access_token
-            req_param = {"uri": uri, "method": http_method, "headers": headers}
+
+            req_param = {
+                "url": uri,
+                "method": http_method,
+                "headers": headers,
+                "stream": model.is_stream()
+            }
 
             if body_value:
-                req_param["body"] = body_value
+                req_param["data"] = body_value
 
-            resp, content = self.http.request(**req_param)
+            resp = self.http_session.request(**req_param)
 
-            if resp.status == 200:
-                return model.response(resp, content)
+            if resp.status_code == 200:
+                return model.response(resp)
 
-            elif resp.status == 401:
+            elif resp.status_code == 401:
                 auth_error_cnt += 1
                 if auth_error_cnt >= 2:
-                    raise HttpError(resp, content, uri)
+                    raise HttpError(resp, uri)
                 self.__refresh_access_token()
                 continue
 
-            elif resp.status in [502, 503, 504]:
+            elif resp.status_code in [502, 503, 504]:
                 if _try_idx == self.max_retries - 1:
-                    raise HttpError(resp, content, uri)
+                    raise HttpError(resp, uri)
                 else:
                     time.sleep(10)
                     continue
@@ -83,10 +88,12 @@ class GarpunApi:
             else:
                 # skip all retries, because in internal server error and we
                 # must not increase the load.
-                raise HttpError(resp, content, uri)
+                raise HttpError(resp, uri)
 
     def __refresh_access_token(self):
-        http = self.credentials.authorize(self.http)
+        import httplib2
+        http = httplib2.Http()
+        http = self.credentials.authorize(http)
         self.credentials.refresh(http)
 
     @staticmethod
@@ -96,8 +103,11 @@ class GarpunApi:
         :param api_version: Example v1, v2alpha
         :return: GarpunApi
         """
-        api_host = "http://" + api_name + ".apis.devision.io"
+        if api_name == 'meta':
+            api_host = "http://apimeta.devision.io/api/meta/" + api_version
+        else:
+            api_host = "http://" + api_name + ".apis.devision.io/" + api_version
         default_credentials, project_id = GarpunCredentials.get_application_default()
         return GarpunApi(
-            host=api_host, api_version=api_version, credentials=default_credentials
+            base_url=api_host, credentials=default_credentials
         )

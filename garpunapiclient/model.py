@@ -3,6 +3,8 @@ import logging
 import platform
 from urllib.parse import urlencode
 
+from requests import Response
+
 from garpunapiclient.errors import HttpError
 
 LOGGER = logging.getLogger(__name__)
@@ -19,7 +21,10 @@ class Model(object):
     def request(self, headers, query_params, post_data):
         _abstract()
 
-    def response(self, resp, content):
+    def response(self, resp):
+        _abstract()
+
+    def is_stream(self):
         _abstract()
 
 
@@ -42,7 +47,7 @@ class BaseModel(Model):
         if body_value is not None:
             headers["content-type"] = self.content_type
             body_value = self.serialize(body_value)
-        return (headers, query, body_value)
+        return headers, query, body_value
 
     def _build_query(self, params):
         astuples = []
@@ -57,16 +62,17 @@ class BaseModel(Model):
                 astuples.append((key, value))
         return "?" + urlencode(astuples)
 
-    def response(self, resp, content):
+    def response(self, resp: Response):
         # Error handling is TBD, for example, do we retry
         # for some operation/error combinations?
-        if resp.status < 300:
-            if resp.status == 204:
+        if resp.status_code < 300:
+            if resp.status_code == 204:
                 # A 204: No Content response should be treated differently
                 # to all the other success states
                 return self.no_content_response
-            return self.deserialize(content)
+            return self.deserialize(resp)
         else:
+            content = resp.text
             LOGGER.debug("Content from bad request was: %s" % content)
             raise HttpError(resp, content)
 
@@ -74,6 +80,9 @@ class BaseModel(Model):
         _abstract()
 
     def deserialize(self, content):
+        _abstract()
+
+    def is_stream(self):
         _abstract()
 
 
@@ -88,7 +97,8 @@ class JsonModel(BaseModel):
     def serialize(self, body_value):
         return json.dumps(body_value)
 
-    def deserialize(self, content):
+    def deserialize(self, resp: Response):
+        content = resp.text
         try:
             content = content.decode("utf-8")
         except AttributeError:
@@ -98,3 +108,38 @@ class JsonModel(BaseModel):
     @property
     def no_content_response(self):
         return {}
+
+    def is_stream(self):
+        return False
+
+
+class RawModel(JsonModel):
+    accept = "*/*"
+    content_type = "application/json"
+    alt_param = None
+
+    def deserialize(self, resp: Response):
+        return resp
+
+    @property
+    def no_content_response(self):
+        return ""
+
+    def is_stream(self):
+        return False
+
+
+class MediaModel(JsonModel):
+    accept = "*/*"
+    content_type = "application/json"
+    alt_param = "media"
+
+    def deserialize(self, resp: Response):
+        return resp
+
+    @property
+    def no_content_response(self):
+        return ""
+
+    def is_stream(self):
+        return True
