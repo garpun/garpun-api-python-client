@@ -10,7 +10,7 @@ class Error(Exception):
 class HttpError(Error):
     """HTTP data was invalid or unexpected."""
 
-    def __init__(self, resp, content, uri=None):
+    def __init__(self, resp, uri=None):
         self.resp = resp
         if not isinstance(content, bytes):
             raise TypeError("HTTP content should be bytes")
