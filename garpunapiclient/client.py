@@ -1,12 +1,10 @@
-import json
 import time
-import urllib
 
 import httplib2
 
 from garpunauth.client import GarpunCredentials
 from garpunapiclient.errors import HttpError
-from garpunapiclient.model import BaseModel, JsonModel
+from garpunapiclient.model import JsonModel
 
 
 class GarpunApi:
