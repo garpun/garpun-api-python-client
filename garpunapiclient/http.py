@@ -5,8 +5,17 @@ from garpunapiclient.errors import HttpError
 
 
 class HttpRequest(object):
-
-    def __init__(self, max_retries, model, http_session, credentials, http_method, headers, url, body_value):
+    def __init__(
+            self,
+            max_retries,
+            model,
+            http_session,
+            credentials,
+            http_method,
+            headers,
+            url,
+            body_value,
+    ):
         self._max_retries = max_retries
         self._model = model
         self._http_session = http_session
@@ -29,14 +38,13 @@ class HttpRequest(object):
                 "url": self._url,
                 "method": self._http_method,
                 "headers": self._headers,
-                "stream": self._model.is_stream()
+                "stream": self._model.is_stream(),
             }
 
             if self._body_value:
                 req_param["data"] = self._body_value
 
             resp = self._http_session.request(**req_param)
-
             if resp.status_code == 200:
                 return self._model.response(resp)
 
@@ -67,7 +75,6 @@ class HttpRequest(object):
 
 
 class MediaDownload(object):
-
     def __init__(self, request: HttpRequest, output_file_description):
         self._request = request
         self._output_file_descriptor = output_file_description
@@ -75,5 +82,6 @@ class MediaDownload(object):
     def full_download(self):
         response = self._request.execute()
         print("response.headers = %s" % str(response.headers))
-        response.raw.decode_content = True  # без этого файлы с mime application/json фигово скачиваются
+        # без этого файлы с mime application/json фигово скачиваются
+        response.raw.decode_content = True
         shutil.copyfileobj(response.raw, self._output_file_descriptor)
