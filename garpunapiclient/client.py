@@ -1,9 +1,8 @@
-import time
-
 import requests
 
 from garpunauth.client import GarpunCredentials
-from garpunapiclient.errors import HttpError
+
+from garpunapiclient.http import HttpRequest
 from garpunapiclient.model import JsonModel
 
 
@@ -22,10 +21,10 @@ class GarpunApi:
         if http_session is None:
             http_session = requests.Session()
 
-        self.http_session = http_session
-        self.base_url = base_url
-        self.credentials = credentials
-        self.max_retries = max_retries
+        self._http_session = http_session
+        self._base_url = base_url
+        self._credentials = credentials
+        self._max_retries = max_retries
 
     def get(self, method_path, query_params=None, model=None):
         return self.request("GET", method_path, query_params, model=model)
@@ -35,66 +34,21 @@ class GarpunApi:
 
     def request(
             self, http_method, method_path, query_params=None, body_value=None, model=None
-    ):
+    ) -> HttpRequest:
         if model is None:
             model = JsonModel()
 
         if query_params is None:
             query_params = {}
 
-        uri = self.base_url + "/" + method_path
+        url = self._base_url + "/" + method_path
 
         headers = {}
         (headers, query, body_value) = model.request(headers, query_params, body_value)
-        uri += query
+        url += query
 
-        if not self.credentials.access_token_expired:
-            self.__refresh_access_token()
-
-        auth_error_cnt = 0
-        for _try_idx in range(self.max_retries):
-            # access_token can refresh into this loop
-            headers["Authorization"] = "Bearer " + self.credentials.access_token
-
-            req_param = {
-                "url": uri,
-                "method": http_method,
-                "headers": headers,
-                "stream": model.is_stream()
-            }
-
-            if body_value:
-                req_param["data"] = body_value
-
-            resp = self.http_session.request(**req_param)
-
-            if resp.status_code == 200:
-                return model.response(resp)
-
-            elif resp.status_code == 401:
-                auth_error_cnt += 1
-                if auth_error_cnt >= 2:
-                    raise HttpError(resp, uri)
-                self.__refresh_access_token()
-                continue
-
-            elif resp.status_code in [502, 503, 504]:
-                if _try_idx == self.max_retries - 1:
-                    raise HttpError(resp, uri)
-                else:
-                    time.sleep(10)
-                    continue
-
-            else:
-                # skip all retries, because in internal server error and we
-                # must not increase the load.
-                raise HttpError(resp, uri)
-
-    def __refresh_access_token(self):
-        import httplib2
-        http = httplib2.Http()
-        http = self.credentials.authorize(http)
-        self.credentials.refresh(http)
+        return HttpRequest(self._max_retries, model, self._http_session,
+                           self._credentials, http_method, headers, url, body_value)
 
     @staticmethod
     def build(api_name: str, api_version: str):
